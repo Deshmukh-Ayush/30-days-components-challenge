@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "make-interfaces-feel-better": {
+      "source": "jakubkrehel/make-interfaces-feel-better",
+      "sourceType": "github",
+      "computedHash": "8d73d983aa9413c1ec44f9798fca621b4f4a69c8eca720a1826d4caa99bf558c"
+    }
+  }
+}

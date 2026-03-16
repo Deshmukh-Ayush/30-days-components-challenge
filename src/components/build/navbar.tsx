@@ -6,16 +6,16 @@ import Image from "next/image";
 // ─── TransitionPanel (inlined — no separate module needed) ───────────────────
 
 const panelVariants = {
-  enter: (dir: number) => ({ x: dir * 48, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir * -48, opacity: 0 }),
+  enter: (dir: number) => ({ x: dir * 100, opacity: 0, filter: "blur(10px)" }),
+  center: { x: 0, opacity: 1, filter: "blur(0px)" },
+  exit: (dir: number) => ({ x: dir * -100, opacity: 0, filter: "blur(10px)" }),
 };
 
 const panelTransition: Transition = {
   type: "spring",
-  mass: 0.4,
-  damping: 15,
-  stiffness: 140,
+  mass: 1,
+  damping: 14.30,
+  stiffness: 58.60,
 };
 
 function TransitionPanel({
@@ -98,7 +98,7 @@ export const Menu = ({
   return (
     <div onMouseLeave={() => setActive(null)}>
       {/* Nav bar — clone children to inject our handleSetActive */}
-      <nav className="relative rounded-full border border-transparent dark:bg-black dark:border-white/20 bg-white shadow-input flex justify-center space-x-4 px-8 py-6">
+      <nav className="relative rounded-full dark:bg-black bg-white shadow-input ring-1 ring-black/10 dark:ring-white/20 flex justify-center space-x-4 px-4 py-2">
         {itemChildren.map((child) =>
           React.cloneElement(child, {
             setActive: handleSetActive,
@@ -112,14 +112,14 @@ export const Menu = ({
         <AnimatePresence>
           {active !== null && (
             <motion.div
-            layout
+              layout
               initial={{ opacity: 0, scale: 0.96, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.97, y: 6 }}
+              exit={{ opacity: 0, scale: 0.97, y: 4, transition: { duration: 0.15, ease: "easeIn" } }}
               transition={{ type: "spring", mass: 0.5, damping: 15, stiffness: 130 }}
-              className="absolute mt-3 z-50"
+              className="absolute mt-2 z-50"
             >
-              <motion.div layout className="bg-white dark:bg-black border border-black/15 dark:border-white/15 rounded-2xl shadow-xl overflow-hidden">
+              <motion.div layout className="bg-white dark:bg-black rounded-lg shadow-xl ring-1 ring-black/10 dark:ring-white/10 overflow-hidden">
                 <TransitionPanel
                   activeIndex={activeIndex}
                   direction={direction}
@@ -143,7 +143,7 @@ export const MenuItem = ({
   item,
 }: MenuItemProps) => {
   return (
-    <div onMouseEnter={() => setActive(item)} className="relative">
+    <div onMouseEnter={() => setActive(item)} className="relative py-1">
       <p className="cursor-pointer text-sm text-black hover:opacity-70 dark:text-white transition-opacity duration-150 select-none">
         {item}
       </p>
@@ -165,19 +165,19 @@ export const ProductItem = ({
   src: string;
 }) => {
   return (
-    <a href={href} className="flex space-x-2">
+    <a href={href} className="flex space-x-2 transition-[scale,opacity] duration-150 ease-out active:scale-[0.97] hover:opacity-90">
       <Image
         src={src}
         width={140}
         height={70}
         alt={title}
-        className="shrink-0 rounded-md shadow-2xl"
+        className="shrink-0 rounded-md shadow-2xl outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
       />
       <div>
-        <h4 className="text-xl font-bold mb-1 text-black dark:text-white">
+        <h4 className="text-xl font-bold mb-1 text-black dark:text-white text-balance">
           {title}
         </h4>
-        <p className="text-neutral-700 text-sm max-w-40 dark:text-neutral-300">
+        <p className="text-neutral-700 text-sm max-w-40 dark:text-neutral-300 text-pretty">
           {description}
         </p>
       </div>
@@ -195,7 +195,7 @@ export const HoveredLink = ({
   return (
     <a
       {...rest}
-      className={`text-neutral-700 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors ${className ?? ""}`}
+      className={`text-neutral-700 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-[color,scale] duration-150 ease-out active:scale-[0.97] ${className ?? ""}`}
     >
       {children}
     </a>

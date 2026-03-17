@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { AnimatePresence, motion, MotionConfig } from 'motion/react';
+import useMeasure from 'react-use-measure';
+import { AnimatePresence, easeInOut, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import useClickOutside from '@/utils/useOutsideClick';
 import { TbFolder, TbMessage, TbUser, TbWallet } from 'react-icons/tb';
@@ -85,91 +86,157 @@ const ITEMS = [
   },
 ];
 
+const TRANSITION = { duration: 0.25, ease: easeInOut };
+
+// direction: 1 = going right (new tab is to the right), -1 = going left
+function getVariants(direction: number) {
+  return {
+    initial: {
+      x: direction * 50,
+      rotateY: direction * 32,
+    },
+    animate: {
+      x: 0,
+      rotateY: 0,
+    },
+    exit: {
+      x: direction * -50,
+      rotateY: direction * -32,
+    },
+  };
+}
+
 export default function ToolbarExpandable() {
   const [active, setActive] = useState<number | null>(null);
+  // Track previous active to compute direction
+  const prevActiveRef = useRef<number | null>(null);
+  const [direction, setDirection] = useState(1);
+
+  const [contentRef, { height: heightContent }] = useMeasure();
   const ref = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   useClickOutside(ref as React.RefObject<HTMLElement>, () => {
     setIsOpen(false);
     setActive(null);
+    prevActiveRef.current = null;
   });
 
+  const handleSelect = (id: number) => {
+    // Compute direction before updating state
+    if (prevActiveRef.current !== null) {
+      const prevIndex = ITEMS.findIndex((i) => i.id === prevActiveRef.current);
+      const nextIndex = ITEMS.findIndex((i) => i.id === id);
+      setDirection(nextIndex > prevIndex ? 1 : -1);
+    } else {
+      setDirection(1);
+    }
+
+    if (!isOpen) setIsOpen(true);
+
+    if (active === id) {
+      setIsOpen(false);
+      setActive(null);
+      prevActiveRef.current = null;
+      return;
+    }
+
+    prevActiveRef.current = id;
+    setActive(id);
+  };
+
+  const variants = getVariants(direction);
+
   return (
-    <MotionConfig
-      transition={{
-        duration: 0.3,
-        ease: 'easeOut',
-      }}
-    >
-      <div className='absolute bottom-64' ref={ref}>
-        <motion.div
-          layout
-          className='flex flex-col overflow-hidden rounded-xl border border-zinc-950/10 bg-white'
-        >
-          <AnimatePresence mode='popLayout' initial={false}>
-            {isOpen && active !== null && (
+    <div className='absolute bottom-64' ref={ref}>
+      <div
+        className='rounded-xl border border-zinc-950/10 bg-white'
+        style={{ width: 'max-content' }}
+      >
+        {/* Height animation for the panel */}
+        <div className='overflow-hidden'>
+          <AnimatePresence initial={false} mode='sync'>
+            {isOpen && (
               <motion.div
-                layout
-                key={active}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className='p-4 pb-0'
+                key='panel'
+                initial={{ height: 0 }}
+                animate={{ height: heightContent || 0 }}
+                exit={{ height: 0 }}
+                transition={TRANSITION}
               >
-                {ITEMS.find((item) => item.id === active)?.content}
+                {/*
+                  perspectiveOrigin + perspective on the container gives the
+                  rotateY a natural vanishing point so the skew looks 3D
+                */}
+                <div
+                  ref={contentRef}
+                  className='p-2'
+                  style={{ perspective: 600, perspectiveOrigin: 'center' }}
+                >
+                  {/*
+                    Use active as the key so AnimatePresence detects a change
+                    and plays exit + enter simultaneously (mode='popLayout'
+                    keeps the outgoing item in flow so height doesn't snap)
+                  */}
+                  <AnimatePresence mode='popLayout' initial={false} custom={direction}>
+                    {ITEMS.filter((item) => item.id === active).map((item) => (
+                      <motion.div
+                        key={item.id}
+                        variants={variants}
+                        initial='initial'
+                        animate='animate'
+                        exit='exit'
+                        transition={TRANSITION}
+                        style={{ transformOrigin: direction === 1 ? 'left center' : 'right center' }}
+                      >
+                        <div className='px-2 pt-2 text-sm'>{item.content}</div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
 
-          <motion.div layout className='flex space-x-2 p-2'>
-            {ITEMS.map((item) => {
-              const isActive = active === item.id;
-              return (
-                <motion.button
-                  layout
-                  key={item.id}
-                  aria-label={item.label}
-                  className={cn(
-                    'relative flex h-9 shrink-0 scale-100 select-none appearance-none items-center justify-center gap-1.5 rounded-lg px-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 focus-visible:ring-2 active:scale-[0.98]',
-                    isActive ? 'bg-zinc-100 text-zinc-800' : ''
+        {/* Toolbar row — plain CSS width, no JS layout */}
+        <div className='flex space-x-2 p-2'>
+          {ITEMS.map((item) => {
+            const isActive = active === item.id;
+            return (
+              <button
+                key={item.id}
+                aria-label={item.label}
+                className={cn(
+                  'relative flex h-9 shrink-0 scale-100 select-none appearance-none items-center justify-center gap-1.5 rounded-lg px-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 focus-visible:ring-2 active:scale-[0.98]',
+                  isActive ? 'bg-zinc-100 text-zinc-800' : ''
+                )}
+                type='button'
+                onClick={() => handleSelect(item.id)}
+              >
+                <span className='flex h-5 w-5 shrink-0 items-center justify-center'>
+                  {item.title}
+                </span>
+
+                <AnimatePresence initial={false}>
+                  {isActive && (
+                    <motion.span
+                      key='label'
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: 'auto', opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      transition={TRANSITION}
+                      className='overflow-hidden whitespace-nowrap text-xs font-medium'
+                    >
+                      {item.label}
+                    </motion.span>
                   )}
-                  type='button'
-                  onClick={() => {
-                    if (active === item.id) {
-                      setIsOpen(false);
-                      setActive(null);
-                    } else {
-                      setIsOpen(true);
-                      setActive(item.id);
-                    }
-                  }}
-                >
-                  {/* Changed to layout="position" to prevent squishing */}
-                  <motion.span layout="position" className='flex h-5 w-5 shrink-0 items-center justify-center'>
-                    {item.title}
-                  </motion.span>
-
-                  <AnimatePresence initial={false}>
-                    {isActive && (
-                      <motion.span
-                        key='label'
-                        initial={{ width: 0, opacity: 0 }}
-                        animate={{ width: 'auto', opacity: 1 }}
-                        exit={{ width: 0, opacity: 0 }}
-                        // Removed the hardcoded transition here so it matches the parent perfectly
-                        className='overflow-hidden whitespace-nowrap text-xs font-medium'
-                      >
-                        {item.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.button>
-              );
-            })}
-          </motion.div>
-        </motion.div>
+                </AnimatePresence>
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </MotionConfig>
+    </div>
   );
 }

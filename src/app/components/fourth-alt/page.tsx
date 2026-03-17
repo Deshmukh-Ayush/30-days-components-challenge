@@ -86,7 +86,7 @@ const ITEMS = [
     },
 ];
 
-const TRANSITION = { duration: 0.3, ease: easeInOut };
+const TRANSITION = { duration: 0.2, ease: easeInOut };
 
 const contentVariants: Variants = {
     initial: (d: number) => ({
